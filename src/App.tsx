@@ -109,7 +109,7 @@ export default function App() {
   }, [currentUser]);
 
   // --- ACTIONS ---
-  const handleStudentLogin = async (e) => {
+const handleStudentLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
     if(!studentName.trim() || !studentClass.trim()) {
@@ -120,13 +120,20 @@ export default function App() {
     setIsLoading(true);
     try {
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("role", "==", "student"), where("name", "==", studentName.trim()), where("className", "==", studentClass.trim()));
+      // Hanya panggil peran murid (Tidak bikin Firebase pusing)
+      const q = query(usersRef, where("role", "==", "student"));
       const querySnapshot = await getDocs(q);
 
+      // Kita cari namanya secara manual di aplikasi
+      const foundUser = querySnapshot.docs
+        .map(d => d.data())
+        .find(u => u.name.toLowerCase() === studentName.trim().toLowerCase() && u.className.toLowerCase() === studentClass.trim().toLowerCase());
+
       let user;
-      if (!querySnapshot.empty) {
-        user = querySnapshot.docs[0].data();
+      if (foundUser) {
+        user = foundUser;
       } else {
+        // Jika belum ada, buatkan data baru!
         const newUserRef = doc(collection(db, "users"));
         user = { 
           id: newUserRef.id, 
@@ -143,7 +150,7 @@ export default function App() {
       setCurrentUser(user);
       setCurrentView('student_dash');
     } catch (err) {
-      setLoginError("Gagal terhubung ke database. Cek internetmu!");
+      setLoginError("Ups, gagal terhubung! Cek sinyal internetmu ya.");
     }
     setIsLoading(false);
   };

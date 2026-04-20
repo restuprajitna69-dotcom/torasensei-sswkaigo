@@ -75,34 +75,33 @@ export default function App() {
     }
   }, [currentUser]);
 
-  // JURUS ANTI NYANGKUT (LOGIN SUPER AMAN)
   const handleStudentLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
-    if(!studentName.trim() || !studentClass.trim()) { setLoginError("Nama dan Kelas wajib diisi ya!"); return; }
+    if(!studentName.trim() || !studentClass.trim()) { setLoginError("Isi dulu ya!"); return; }
     
     setIsLoading(true);
     try {
-      // Ambil semua user sekaligus untuk menghindari error komposit index
-      const querySnapshot = await getDocs(collection(db, "users"));
-      const allUsers = querySnapshot.docs.map(d => d.data());
+      // Detektor 1: Cek apakah Firebase terkoneksi
+      const usersRef = collection(db, "users");
+      const querySnapshot = await getDocs(usersRef);
       
+      const allUsers = querySnapshot.docs.map(d => d.data());
       const foundUser = allUsers.find(u => u.role === 'student' && u.name.toLowerCase() === studentName.trim().toLowerCase() && u.className.toLowerCase() === studentClass.trim().toLowerCase());
 
-      let user;
-      if (foundUser) {
-        user = foundUser;
-      } else {
+      let user = foundUser;
+      if (!user) {
         const newUserRef = doc(collection(db, "users"));
-        user = { id: newUserRef.id, role: 'student', name: studentName.trim(), className: studentClass.trim(), xp: Math.floor(Math.random() * 100) + 50, streak: 1, createdAt: Date.now() };
+        user = { id: newUserRef.id, role: 'student', name: studentName.trim(), className: studentClass.trim(), xp: 100, streak: 1, createdAt: Date.now() };
         await setDoc(newUserRef, user);
       }
       
       setCurrentUser(user);
       setCurrentView('student_dash');
     } catch (err) {
+      // INI AKAN MENAMPILKAN PESAN ERROR ASLI DI LAYAR HP
       console.error(err);
-      setLoginError("Ups! Database terkunci. Pastikan Firestore Rules sudah 'true'.");
+      setLoginError("PENYAKIT: " + err.code + " - " + err.message);
     }
     setIsLoading(false);
   };

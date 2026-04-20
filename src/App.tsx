@@ -75,33 +75,57 @@ export default function App() {
     }
   }, [currentUser]);
 
-  const handleStudentLogin = async (e) => {
+    const handleStudentLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
-    if(!studentName.trim() || !studentClass.trim()) { setLoginError("Isi dulu ya!"); return; }
+    
+    // Validasi input kosong
+    if(!studentName.trim() || !studentClass.trim()) {
+      setLoginError("Nama dan Kelas wajib diisi ya, Sensei!");
+      return;
+    }
     
     setIsLoading(true);
     try {
-      // Detektor 1: Cek apakah Firebase terkoneksi
       const usersRef = collection(db, "users");
-      const querySnapshot = await getDocs(usersRef);
       
-      const allUsers = querySnapshot.docs.map(d => d.data());
-      const foundUser = allUsers.find(u => u.role === 'student' && u.name.toLowerCase() === studentName.trim().toLowerCase() && u.className.toLowerCase() === studentClass.trim().toLowerCase());
+      // 1. Ambil data semua murid (Cara paling aman agar tidak stuck loading)
+      const q = query(usersRef, where("role", "==", "student"));
+      const querySnapshot = await getDocs(q);
+      const allStudents = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      let user = foundUser;
-      if (!user) {
+      // 2. Cari apakah nama & kelas sudah ada di database (seperti Adelia)
+      // Kita buat semuanya jadi huruf kecil (.toLowerCase()) agar tidak salah paham
+      const foundUser = allStudents.find(u => 
+        u.name?.toLowerCase() === studentName.trim().toLowerCase() && 
+        (u.className?.toLowerCase() === studentClass.trim().toLowerCase() || u.classname?.toLowerCase() === studentClass.trim().toLowerCase())
+      );
+
+      let user;
+      if (foundUser) {
+        // Jika data ketemu (seperti Adelia), langsung pakai data itu
+        user = foundUser;
+      } else {
+        // Jika nama TIDAK ADA, maka sistem otomatis buatkan akun baru
         const newUserRef = doc(collection(db, "users"));
-        user = { id: newUserRef.id, role: 'student', name: studentName.trim(), className: studentClass.trim(), xp: 100, streak: 1, createdAt: Date.now() };
+        user = { 
+          id: newUserRef.id, 
+          role: 'student', 
+          name: studentName.trim(), 
+          className: studentClass.trim(), // Kita pakai format standar N besar
+          xp: 100, 
+          streak: 1,
+          createdAt: Date.now()
+        };
         await setDoc(newUserRef, user);
       }
       
+      // Set user yang aktif dan pindah ke halaman dashboard
       setCurrentUser(user);
       setCurrentView('student_dash');
     } catch (err) {
-      // INI AKAN MENAMPILKAN PESAN ERROR ASLI DI LAYAR HP
-      console.error(err);
-      setLoginError("PENYAKIT: " + err.code + " - " + err.message);
+      console.error("Login Error:", err);
+      setLoginError("Ups! Masalah koneksi: " + err.message);
     }
     setIsLoading(false);
   };
